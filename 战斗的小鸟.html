@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>小鸟战斗游戏</title>
+    <style>
+        /* 基础样式设置 */
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            background-color: #87CEEB;
+            touch-action: none; /* 禁用浏览器默认触摸行为 */
+        }
+        
+        /* 游戏画布样式 */
+        #gameCanvas {
+            display: block;
+            background-color: #87CEEB;
+        }
+        
+        /* 游戏UI界面样式 */
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 18px;
+            text-shadow: 1px 1px 2px black;
+        }
+        
+        /* 开始游戏屏幕样式 */
+        #startScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 10;
+        }
+        
+        /* 按钮通用样式 */
+        button {
+            padding: 10px 20px;
+            font-size: 18px;
+            margin-top: 20px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        
+        /* 按钮悬停效果 */
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        /* 游戏结束屏幕样式 */
+        #gameOverScreen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            z-index: 10;
+        }
+        
+        /* 手机控制按钮样式 */
+        #mobileControls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            display: none; /* 默认隐藏，在移动设备显示 */
+        }
+        
+        #shootButton {
+            padding: 15px 25px;
+            font-size: 20px;
+            background-color: #f44336;
+            border-radius: 50%;
+            width: 80px;
+            height: 80px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        /* 手机提示 */
+        #mobileTips {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            color: white;
+            text-shadow: 1px 1px 2px black;
+            display: none; /* 默认隐藏，在移动设备显示 */
+        }
+        
+        /* 响应式设计 - 移动设备 */
+        @media (max-width: 768px) {
+            #mobileControls, #mobileTips {
+                display: block;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 游戏主画布 -->
+    <canvas id="gameCanvas"></canvas>
+    
+    <!-- 游戏UI显示 -->
+    <div id="ui">
+        <div>分数: <span id="score">0</span></div>
+        <div>生命: <span id="lives">3</span></div>
+        <div>战力: <span id="power">100%</span></div>
+    </div>
+    
+    <!-- 开始游戏界面 -->
+    <div id="startScreen">
+        <h1>小鸟战斗游戏</h1>
+        <p id="controlsText">使用方向键/WASD移动，空格/点击射击</p>
+        <button id="startButton">开始游戏</button>
+    </div>
+    
+    <!-- 游戏结束界面 -->
+    <div id="gameOverScreen">
+        <h1>游戏结束</h1>
+        <p>你的最终分数: <span id="finalScore">0</span></p>
+        <button id="restartButton">重新开始</button>
+    </div>
+    
+    <!-- 手机控制按钮 -->
+    <div id="mobileControls">
+        <button id="shootButton">射击</button>
+    </div>
+    
+    <!-- 手机提示 -->
+    <div id="mobileTips">
+        手机操作提示：<br>
+        1. 滑动屏幕控制移动<br>
+        2. 点击右侧按钮射击
+    </div>
+
+    <script>
+        // ========== 游戏初始化 ==========
+        // 获取HTML元素
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreElement = document.getElementById('score');
+        const livesElement = document.getElementById('lives');
+        const powerElement = document.getElementById('power');
+        const startScreen = document.getElementById('startScreen');
+        const gameOverScreen = document.getElementById('gameOverScreen');
+        const finalScoreElement = document.getElementById('finalScore');
+        const startButton = document.getElementById('startButton');
+        const restartButton = document.getElementById('restartButton');
+        const shootButton = document.getElementById('shootButton');
+        const controlsText = document.getElementById('controlsText');
+        const mobileTips = document.getElementById('mobileTips');
+
+        // 检测移动设备
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        if (isMobile) {
+            controlsText.innerHTML = "滑动屏幕移动，点击按钮射击";
+            mobileTips.style.display = 'block';
+        }
+
+        // 设置画布大小为窗口大小
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resizeCanvas();
+
+        // ========== 游戏状态变量 ==========
+        let gameRunning = false;
+        let score = 0;
+        let lives = 3;
+        let power = 100;
+        let gameTime = 0;
+
+        // ========== 游戏对象定义 ==========
+        // 玩家小鸟对象
+        const player = {
+            x: 100,
+            y: 100,
+            radius: 20,
+            color: 'red',
+            speed: 5,
+            dx: 0,
+            dy: 0,
+            lastShot: 0,
+            isPlayer: true
+        };
+
+        // 敌人小鸟数组
+        let enemies = [];
+        const ENEMY_COUNT = 2;
+
+        // 子弹数组
+        let bullets = [];
+
+        // 障碍物数组
+        let obstacles = [];
+
+        // ========== 触摸控制变量 ==========
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let isTouching = false;
+
+        // ========== 游戏核心函数 ==========
+        /**
+         * 初始化游戏状态
+         */
+        function initGame() {
+            score = 0;
+            lives = 3;
+            power = 100;
+            gameTime = 0;
+            
+            player.x = canvas.width / 4;
+            player.y = canvas.height / 2;
+            player.dx = 0;
+            player.dy = 0;
+            
+            enemies = [];
+            bullets = [];
+            obstacles = [];
+            
+            for (let i = 0; i < ENEMY_COUNT; i++) {
+                createEnemy();
+            }
+            
+            createObstacles();
+            updateUI();
+        }
+
+        /**
+         * 创建一个敌人小鸟
+         */
+        function createEnemy() {
+            const enemy = {
+                x: Math.random() * (canvas.width - 40) + 20,
+                y: Math.random() * (canvas.height - 40) + 20,
+                radius: 15 + Math.random() * 10,
+                color: 'blue',
+                speed: 1 + Math.random() * 3,
+                dx: (Math.random() - 0.5) * 2,
+                dy: (Math.random() - 0.5) * 2,
+                health: 2,
+                lastDirectionChange: 0,
+                lastShot: 0,
+                isPlayer: false
+            };
+            enemies.push(enemy);
+        }
+
+        /**
+         * 创建障碍物
+         */
+        function createObstacles() {
+            for (let i = 0; i < 8; i++) {
+                const obstacle = {
+                    x: Math.random() * (canvas.width - 100) + 50,
+                    y: Math.random() * (canvas.height - 100) + 50,
+                    width: 30 + Math.random() * 70,
+                    height: 30 + Math.random() * 70,
+                    color: 'green'
+                };
+                obstacles.push(obstacle);
+            }
+        }
+
+        /**
+         * 绘制所有游戏对象
+         */
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // 绘制障碍物
+            obstacles.forEach(obstacle => {
+                ctx.fillStyle = obstacle.color;
+                ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+            });
+            
+            // 绘制子弹
+            bullets.forEach(bullet => {
+                ctx.beginPath();
+                ctx.arc(bullet.x, bullet.y, bullet.radius, 0, Math.PI * 2);
+                ctx.fillStyle = bullet.color;
+                ctx.fill();
+                ctx.closePath();
+            });
+            
+            // 绘制敌人
+            enemies.forEach(enemy => {
+                ctx.beginPath();
+                ctx.arc(enemy.x, enemy.y, enemy.radius, 0, Math.PI * 2);
+                ctx.fillStyle = enemy.color;
+                ctx.fill();
+                ctx.closePath();
+            });
+            
+            // 绘制玩家
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+            ctx.fillStyle = player.color;
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        /**
+         * 更新游戏状态(每帧调用)
+         */
+        function update() {
+            if (!gameRunning) return;
+            
+            gameTime++;
+            
+            // 更新玩家位置
+            player.x += player.dx;
+            player.y += player.dy;
+            
+            // 边界检查
+            if (player.x - player.radius < 0) player.x = player.radius;
+            if (player.x + player.radius > canvas.width) player.x = canvas.width - player.radius;
+            if (player.y - player.radius < 0) player.y = player.radius;
+            if (player.y + player.radius > canvas.height) player.y = canvas.height - player.radius;
+            
+            // 更新敌人
+            updateEnemies();
+            
+            // 更新子弹
+            updateBullets();
+            
+            // 检查碰撞
+            checkCollisions();
+            
+            // 恢复战力
+            if (power < 100 && gameTime % 10 === 0) {
+                power = Math.min(100, power + 0.5);
+                updateUI();
+            }
+            
+            draw();
+            requestAnimationFrame(update);
+        }
+
+        /**
+         * 更新所有敌人的状态
+         */
+        function updateEnemies() {
+            enemies.forEach(enemy => {
+                if (Math.random() < 0.01 || gameTime - enemy.lastDirectionChange > 120) {
+                    enemy.dx = (Math.random() - 0.5) * 2;
+                    enemy.dy = (Math.random() - 0.5) * 2;
+                    enemy.lastDirectionChange = gameTime;
+                }
+                
+                if (Math.random() < 0.02) {
+                    const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
+                    enemy.dx = Math.cos(angle) * enemy.speed * 0.5;
+                    enemy.dy = Math.sin(angle) * enemy.speed * 0.5;
+                }
+                
+                enemy.x += enemy.dx;
+                enemy.y += enemy.dy;
+                
+                // 边界检查
+                if (enemy.x - enemy.radius < 0) {
+                    enemy.x = enemy.radius;
+                    enemy.dx *= -1;
+                }
+                if (enemy.x + enemy.radius > canvas.width) {
+                    enemy.x = canvas.width - enemy.radius;
+                    enemy.dx *= -1;
+                }
+                if (enemy.y - enemy.radius < 0) {
+                    enemy.y = enemy.radius;
+                    enemy.dy *= -1;
+                }
+                if (enemy.y + enemy.radius > canvas.height) {
+                    enemy.y = canvas.height - enemy.radius;
+                    enemy.dy *= -1;
+                }
+                
+                // 敌人射击
+                if (gameTime - enemy.lastShot > 120 && Math.random() < 0.01) {
+                    const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
+                    bullets.push({
+                        x: enemy.x,
+                        y: enemy.y,
+                        radius: 5,
+                        color: 'blue',
+                        speed: 4,
+                        dx: Math.cos(angle) * 4,
+                        dy: Math.sin(angle) * 4,
+                        isPlayer: false
+                    });
+                    enemy.lastShot = gameTime;
+                }
+            });
+        }
+
+        /**
+         * 更新所有子弹的状态
+         */
+        function updateBullets() {
+            bullets.forEach((bullet, index) => {
+                bullet.x += bullet.dx;
+                bullet.y += bullet.dy;
+                
+                // 移除屏幕外的子弹
+                if (bullet.x < 0 || bullet.x > canvas.width || bullet.y < 0 || bullet.y > canvas.height) {
+                    bullets.splice(index, 1);
+                    return;
+                }
+                
+                // 检查子弹碰撞
+                if (bullet.isPlayer) {
+                    // 玩家子弹击中敌人
+                    checkPlayerBulletHit(bullet, index);
+                } else {
+                    // 敌人子弹击中玩家
+                    checkEnemyBulletHit(bullet, index);
+                }
+                
+                // 子弹与障碍物碰撞
+                checkBulletObstacleCollision(bullet, index);
+            });
+        }
+
+        /**
+         * 检查玩家子弹是否击中敌人
+         */
+        function checkPlayerBulletHit(bullet, bulletIndex) {
+            enemies.forEach((enemy, enemyIndex) => {
+                const dist = Math.sqrt((bullet.x - enemy.x) ** 2 + (bullet.y - enemy.y) ** 2);
+                if (dist < enemy.radius + bullet.radius) {
+                    enemy.health--;
+                    if (enemy.health <= 0) {
+                        enemies.splice(enemyIndex, 1);
+                        score += 10;
+                        createEnemy();
+                    }
+                    bullets.splice(bulletIndex, 1);
+                }
+            });
+        }
+
+        /**
+         * 检查敌人子弹是否击中玩家
+         */
+        function checkEnemyBulletHit(bullet, bulletIndex) {
+            const dist = Math.sqrt((bullet.x - player.x) ** 2 + (bullet.y - player.y) ** 2);
+            if (dist < player.radius + bullet.radius) {
+                lives--;
+                power = Math.max(0, power - 20);
+                bullets.splice(bulletIndex, 1);
+                updateUI();
+                if (lives <= 0) {
+                    gameOver();
+                }
+            }
+        }
+
+        /**
+         * 检查子弹与障碍物的碰撞
+         */
+        function checkBulletObstacleCollision(bullet, bulletIndex) {
+            obstacles.forEach(obstacle => {
+                if (bullet.x > obstacle.x && bullet.x < obstacle.x + obstacle.width &&
+                    bullet.y > obstacle.y && bullet.y < obstacle.y + obstacle.height) {
+                    bullets.splice(bulletIndex, 1);
+                }
+            });
+        }
+
+        /**
+         * 检查所有碰撞
+         */
+        function checkCollisions() {
+            // 检查玩家与敌人的碰撞
+            enemies.forEach(enemy => {
+                const dist = Math.sqrt((player.x - enemy.x) ** 2 + (player.y - enemy.y) ** 2);
+                if (dist < player.radius + enemy.radius) {
+                    lives--;
+                    power = Math.max(0, power - 15);
+                    const angle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
+                    player.x += Math.cos(angle) * 20;
+                    player.y += Math.sin(angle) * 20;
+                    updateUI();
+                    if (lives <= 0) {
+                        gameOver();
+                    }
+                }
+            });
+            
+            // 检查玩家与障碍物的碰撞
+            obstacles.forEach(obstacle => {
+                const testX = Math.max(obstacle.x, Math.min(player.x, obstacle.x + obstacle.width));
+                const testY = Math.max(obstacle.y, Math.min(player.y, obstacle.y + obstacle.height));
+                
+                const dist = Math.sqrt((player.x - testX) ** 2 + (player.y - testY) ** 2);
+                
+                if (dist < player.radius) {
+                    const angle = Math.atan2(player.y - testY, player.x - testX);
+                    player.x += Math.cos(angle) * 2;
+                    player.y += Math.sin(angle) * 2;
+                }
+            });
+        }
+
+        /**
+         * 更新UI显示
+         */
+        function updateUI() {
+            scoreElement.textContent = score;
+            livesElement.textContent = lives;
+            powerElement.textContent = Math.floor(power) + '%';
+        }
+
+        /**
+         * 游戏结束处理
+         */
+        function gameOver() {
+            gameRunning = false;
+            finalScoreElement.textContent = score;
+            gameOverScreen.style.display = 'flex';
+        }
+
+        /**
+         * 玩家射击函数
+         */
+        function shoot() {
+            if (power < 10) return;
+            
+            // 计算射击方向（优先使用移动方向，否则朝右射击）
+            let angle;
+            if (player.dx !== 0 || player.dy !== 0) {
+                angle = Math.atan2(player.dy, player.dx);
+            } else {
+                angle = 0; // 默认朝右
+            }
+            
+            bullets.push({
+                x: player.x,
+                y: player.y,
+                radius: 5,
+                color: 'red',
+                speed: 7,
+                dx: Math.cos(angle) * 7,
+                dy: Math.sin(angle) * 7,
+                isPlayer: true
+            });
+            
+            power -= 10;
+            updateUI();
+        }
+
+        // ========== 输入控制 ==========
+        // 鼠标/触摸位置变量
+        let mouseX = 0;
+        let mouseY = 0;
+
+        // 鼠标点击事件(射击)
+        canvas.addEventListener('click', (e) => {
+            if (gameRunning && !isMobile) {
+                const rect = canvas.getBoundingClientRect();
+                mouseX = e.clientX - rect.left;
+                mouseY = e.clientY - rect.top;
+                shoot();
+            }
+        });
+
+        // 鼠标移动事件(记录位置)
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = e.clientX - rect.left;
+            mouseY = e.clientY - rect.top;
+        });
+
+        // 触摸开始事件
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            isTouching = true;
+            const touch = e.touches[0];
+            touchStartX = touch.clientX;
+            touchStartY = touch.clientY;
+        });
+
+        // 触摸移动事件
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (!isTouching || !gameRunning) return;
+            
+            const touch = e.touches[0];
+            const deltaX = touch.clientX - touchStartX;
+            const deltaY = touch.clientY - touchStartY;
+            
+            // 计算移动方向（灵敏度调节）
+            player.dx = deltaX * 1;
+            player.dy = deltaY * 1;
+            
+            // 更新起始位置实现连续移动
+            touchStartX = touch.clientX;
+            touchStartY = touch.clientY;
+        });
+
+        // 触摸结束事件
+        canvas.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            isTouching = false;
+            player.dx = 0;
+            player.dy = 0;
+        });
+
+        // 射击按钮点击事件
+        shootButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (gameRunning) shoot();
+        });
+
+        // 键盘按下事件(移动控制)
+        document.addEventListener('keydown', (e) => {
+            if (!gameRunning) return;
+            
+            switch (e.key) {
+                case 'ArrowUp':
+                case 'w':
+                case 'W':
+                    player.dy = -player.speed;
+                    break;
+                case 'ArrowDown':
+                case 's':
+                case 'S':
+                    player.dy = player.speed;
+                    break;
+                case 'ArrowLeft':
+                case 'a':
+                case 'A':
+                    player.dx = -player.speed;
+                    break;
+                case 'ArrowRight':
+                case 'd':
+                case 'D':
+                    player.dx = player.speed;
+                    break;
+                case ' ':
+                    shoot();
+                    break;
+            }
+        });
+
+        // 键盘释放事件(停止移动)
+        document.addEventListener('keyup', (e) => {
+            switch (e.key) {
+                case 'ArrowUp':
+                case 'ArrowDown':
+                case 'w':
+                case 'W':
+                case 's':
+                case 'S':
+                    player.dy = 0;
+                    break;
+                case 'ArrowLeft':
+                case 'ArrowRight':
+                case 'a':
+                case 'A':
+                case 'd':
+                case 'D':
+                    player.dx = 0;
+                    break;
+            }
+        });
+
+        // ========== 窗口和游戏控制 ==========
+        // 窗口大小调整事件
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+        });
+
+        // 开始游戏按钮点击事件
+        startButton.addEventListener('click', () => {
+            startScreen.style.display = 'none';
+            initGame();
+            gameRunning = true;
+            update();
+        });
+
+        // 重新开始按钮点击事件
+        restartButton.addEventListener('click', () => {
+            gameOverScreen.style.display = 'none';
+            initGame();
+            gameRunning = true;
+            update();
+        });
+    </script>
+</body>
+</html>
