@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>小组签到系统 - 跳转网关</title>
+        <style>
+            /* 全局样式，居中内容 */
+            body,
+            html {
+                height: 100%;
+                margin: 0;
+                display: flex;
+                justify-content: center;
+                /* 水平居中 */
+                align-items: center;
+                /* 垂直居中 */
+                background-color: #f0f0f0;
+                /* 可选：设置背景颜色 */
+            }
+
+            /* 跳转按钮样式 */
+            .jump-btn {
+                padding: 15px 30px;
+                background: #2196F3;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                transition: transform 0.2s, box-shadow 0.2s;
+                text-decoration: none;
+                /* 移除链接下划线 */
+                margin: 50px;
+                /* 可选：按钮之间的间距 */
+            }
+
+            .jump-btn:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(33, 150, 243, 0.4);
+            }
+
+            /* 容器样式 */
+            .transition-container {
+                text-align: center;
+                /* 可选：按钮内部文本居中 */
+            }
+
+            /* 标题样式 */
+            h1 {
+                margin-bottom: 20px;
+                /* 可选：标题与按钮之间的间距 */
+            }
+
+
+
+            /* 小组签到系统样式 */
+            /* 基础样式优化自[6]() () */
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+
+            body {
+                font-family: Arial, sans-serif;
+                padding: 20px;
+                background: #f0f2f5;
+                font-size: 16px;
+                /* 调整字体大小 */
+            }
+
+            .container {
+                max-width: 800px;
+                margin: 0 auto;
+                background: white;
+                padding: 20px;
+                border-radius: 8px;
+                box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+            }
+
+            h2 {
+                color: #1a73e8;
+                margin-bottom: 20px;
+                padding-bottom: 10px;
+                border-bottom: 2px solid #eee;
+            }
+
+            .member-list {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 10px;
+                margin-bottom: 20px;
+            }
+
+            .member-item {
+                display: flex;
+                align-items: center;
+                padding: 12px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                transition: background 0.2s;
+            }
+
+            .member-item:hover {
+                background: #f8f9fa;
+            }
+
+            .button-group {
+                text-align: center;
+                margin-top: 20px;
+            }
+
+            button {
+                padding: 10px 24px;
+                background: #1a73e8;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                margin: 0 5px;
+                transition: opacity 0.2s;
+            }
+
+            button:hover {
+                opacity: 0.9;
+            }
+
+            .timestamp {
+                color: #666;
+                font-size: 0.9em;
+                text-align: right;
+                margin-bottom: 15px;
+            }
+
+            /* 响应式布局 */
+            @media (max-width: 600px) {
+                .member-list {
+                    grid-template-columns: 1fr;
+                    /* 单列布局 */
+                }
+            }
+
+            .jump {
+                margin: 50px;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- 跳转网关部分 -->
+        <div class="transition-container" id="transitionContainer">
+            <h1>小组跳转系统</h1>
+            <div class="jump"><a class="jump-btn" href="#" onclick="showGroup('group1')">第一组</a></div>
+            <div class="jump"><a class="jump-btn" href="#" onclick="showGroup('group2')">第二组</a></div>
+            <div class="jump"><a class="jump-btn" href="#" onclick="showGroup('group3')">第三组</a></div>
+            <div class="jump"><a class="jump-btn" href="#" onclick="showGroup('group4')">第四组</a></div>
+            <div class="jump"><a class="jump-btn" href="#" onclick="showGroup('group5')">第五组</a></div>
+            <div class="jump"><a class="jump-btn" href="#" onclick="showGroup('group6')">第六组</a></div>
+            <!-- 添加导出数据按钮 -->
+            <button onclick="exportData()">导出数据</button>
+            <!-- 添加清除数据按钮 -->
+            <button onclick="clearData()">清除数据</button>
+        </div>
+
+        <!-- 小组签到系统部分 -->
+        <div class="container" id="signInContainer" style="display: none;">
+            <h2 id="groupTitle">正在加载小组信息...</h2>
+            <div class="timestamp" id="timestamp"></div>
+            <div class="member-list" id="memberList"></div>
+            <div class="button-group">
+                <button onclick="saveData()">提交签到</button>
+                <button onclick="exportData()">导出数据</button>
+                <!-- 添加返回按钮 -->
+                <button onclick="goBack()">返回</button>
+            </div>
+        </div>
+
+        <script>
+            // 小组数据结构（需按实际名单修改）
+            const groups = {
+                group1: {
+                    members: [
+                        "72李雨泽",
+                        "73葛绍凯",
+                        "73葛宇浩",
+                        "74葛浩然",
+                        "74刘慕童",
+                        "74王韶雨",
+                        "74郭帅楠"
+                    ],
+                    leader: "许孜佳"
+                },
+                group2: {
+                    members: ["75郑晶",
+                        "75代欣怡",
+                        "76侯若绮",
+                        "76赵书杨",
+                        "76王博雅",
+                        "76黄文博",
+                        "77葛佳霖",
+                        "77梁洋洋",
+                        "77赵正阳",
+                        "77李得贤",
+                        "77张子俊"
+                    ],
+                    leader: "郑晶"
+                },
+                group3: {
+                    members: ["78邓靖玉",
+                        "78刘子诺",
+                        "79刘梦婷",
+                        "79李雪燕",
+                        "79杨恩泽",
+                        "710李一硕",
+                        "710李家涛",
+                        "710葛鑫豪",
+                        "710管俊泽",
+                        "711刘新容",
+                        "711邢瑄瑄",
+                        "711陈心然"
+                    ],
+                    leader: "邓靖玉"
+                },
+                group4: {
+                    members: ["712李润泽",
+                        "712方婉婷",
+                        "712李夏欣",
+                        "712墨俊妮",
+                        "86王家乐",
+                        "86岳宇豪",
+                        "84郭俊昊",
+                        "84王士博",
+                        "84丁佳梦",
+                        "84张紫琼",
+                        "83葛念祖"
+                    ],
+                    leader: "李润泽"
+                },
+                group5: {
+                    members: ["83何晓北",
+                        "83许子跃",
+                        "82李东朔",
+                        "82唐驰",
+                        "81陈雨寻",
+                        "87赵玉宝",
+                        "87葛雅琦",
+                        "85李梦瑶"
+
+                    ],
+                    leader: "何晓北"
+                },
+                group6: {
+                    members: ["李梦瑶",
+                        "马紫涵",
+                        "孟宇晨",
+                        "王怡娜",
+                        "邵子琳",
+                        "孙雅萱",
+                        "孙晨",
+                        "王欣怡",
+                        "李念念",
+                        "邓婧",
+                        "张欣茹",
+                        "邓婉月"
+                    ],
+                    leader: "孟宇晨"
+                },
+
+            };
+
+            let currentGroupID = 'group1';
+
+            // 显示指定小组的签到页面
+            function showGroup(groupID) {
+                currentGroupID = groupID;
+                document.getElementById('transitionContainer').style.display = 'none';
+                document.getElementById('signInContainer').style.display = 'block';
+                initPage();
+            }
+
+            // 初始化页面 
+            function initPage() {
+                const group = groups[currentGroupID];
+                if (!group) {
+                    alert("无效的小组编号");
+                    document.getElementById('transitionContainer').style.display = 'block';
+                    document.getElementById('signInContainer').style.display = 'none';
+                    return;
+                }
+
+                // 渲染标题 
+                document.getElementById('groupTitle').innerHTML =
+                    `${currentGroupID.toUpperCase()} （组长：${group.leader} ）`;
+
+                // 渲染成员列表 
+                const memberList = document.getElementById('memberList');
+                memberList.innerHTML = '';
+                group.members.forEach(member => {
+                    const div = document.createElement('div');
+                    div.className = 'member-item';
+                    div.innerHTML = `
+                    <label style="flex:1">
+                        <input type="checkbox" data-name="${member}">
+                        ${member}
+                    </label>
+                `;
+                    memberList.appendChild(div);
+                });
+
+                // 显示时间 
+                document.getElementById('timestamp').textContent =
+                    `当前时间：${new Date().toLocaleString()}`;
+            }
+
+            // 保存数据（含简单混淆）
+            function saveData() {
+                if (!confirm("确认提交缺席名单？")) return;
+
+                const checkedMembers = [...document.querySelectorAll('input:checked')]
+                    .map(checkbox => checkbox.dataset.name);
+
+                const currentDate = new Date().toISOString().slice(0, 10);
+                const storageKey = btoa(`checkin_${currentGroupID}_${currentDate}`);
+
+                localStorage.setItem(storageKey, JSON.stringify({
+                    date: new Date().toLocaleString(),
+                    absentees: checkedMembers
+                }));
+
+                alert("提交成功！");
+            }
+
+            // 导出数据功能
+            function exportData() {
+                const data = {};
+                const currentDate = new Date().toISOString().slice(0, 10);
+
+                for (const group in groups) {
+                    const storageKey = btoa(`checkin_${group}_${currentDate}`);
+                    const groupData = JSON.parse(localStorage.getItem(storageKey) || '{}');
+                    const chineseGroupData = {
+                        "日期": groupData.date,
+                        "缺席人员": groupData.absentees
+                    };
+                    data[`第${group.charAt(group.length - 1)}组`] = chineseGroupData;
+                }
+
+                const blob = new Blob([JSON.stringify(data, null, 2)], {
+                    type: "application/json"
+                });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `签到数据_${currentDate}.json`;
+                a.click();
+            }
+
+            // 清除数据功能
+            function clearData() {
+                if (confirm("确认要清除所有签到数据吗？")) {
+                    const currentDate = new Date().toISOString().slice(0, 10);
+                    for (const group in groups) {
+                        const storageKey = btoa(`checkin_${group}_${currentDate}`);
+                        localStorage.removeItem(storageKey);
+                    }
+                    alert("数据已清除！");
+                }
+            }
+
+            // 返回功能
+            function goBack() {
+                document.getElementById('transitionContainer').style.display = 'block';
+                document.getElementById('signInContainer').style.display = 'none';
+            }
+        </script>
+    </body>
+</html>
